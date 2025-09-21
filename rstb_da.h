@@ -1,5 +1,5 @@
 /* 
-rstb_da.h - v1.0 UnknownRori <unknownrori@proton.me>
+rstb_da.h - v1.1 UnknownRori <unknownrori@proton.me>
 
 This is a single-header-file library that provides easy to use
 Dynamic Array (da) for C by using macro system.
@@ -14,6 +14,7 @@ Table of Contents :
 - API
 - Flag
 - Redefinable Macros
+- Change Log
 
 ## Quick Example
 
@@ -52,24 +53,28 @@ int main()
  - rstb_da_reserve(DA, COUNT)       - Helper macro that reserve memory to allow storing amount of items.
  - rstb_da_append(DA, VALUE)        - Helper macro that append value into dynamic array.
  - rstb_da_free(DA)                 - Helper macro that free dynamic array but not setting the count or capacity to 0.
- - rstb_da_reset(DA)                - Helper macro that set the count to 0 effectifly remove all the element.
+ - rstb_da_reset(DA)                - Helper macro that set the count to 0 effectively remove all the element.
 
 ## Flags
 
  - RSTB_DA_H_STRIP_PREFIX           - strip `rstb_` prefixes for non-redefinable names
  
 ## Redefinable Macros
+
  - RSTB_DA_ASSERT(VALUE)            - redefine which assert() of the rstb_da.h should be use.
  - RSTB_DA_REALLOC(OLDPTR, SIZE)    - redefine which realloc() of the rstb_da.h should be use.
  - RSTB_DA_FREE(PTR)                - redefine which free() of the rstb_da.h should be use.
  - RSTB_DA_INIT_CAP                 - redefine how many items should be allocated when initialized.
  
+## Change Log
+ - 1.0  - Initial Release
+ - 1.1  - Added rstb_da_remove_unordered, rstb_da_last
  
 */
 
 #pragma once
 
-#ifndef     RSTB_DA_H
+#ifndef RSTB_DA_H
 #define RSTB_DA_H
 
 #include <stddef.h>
@@ -106,6 +111,7 @@ int main()
 #define rstb_da_reserve(DA, EXPECTED) \
     do { \
         if ((EXPECTED) > (DA)->capacity) { \
+            int old = (DA)->capacity; \
             if ((DA)->capacity == 0) { \
                 (DA)->capacity = RSTB_DA_INIT_CAP; \
             } \
@@ -114,6 +120,7 @@ int main()
             } \
             (DA)->items = RSTB_DA_REALLOC((DA)->items, (DA)->capacity * sizeof(*(DA)->items)); \
             RSTB_DA_ASSERT((DA)->items && "Buy more RAM lol"); \
+            memset((DA)->items + old, 0, ((DA)->capacity - old) * sizeof(*(DA)->items)); \
         } \
     } while(0)
 
@@ -130,18 +137,28 @@ int main()
         (DA)->count += (NEW_ITEM_COUNT); \
     } while(0)
 
+#define rstb_da_remove_unordered(DA, INDEX) \
+    do { \
+        size_t j = (INDEX); \
+        RSTB_DA_ASSERT((DA)->count > INDEX && "Out of bound"); \
+        (DA)->items[j] = (DA)->items[--(DA)->count]; \
+    } while (0) 
+
+#define rstb_da_last(DA) (DA)->items[(RSTB_DA_ASSERT((DA)->count > 0), (DA)->count - 1)]
 #define rstb_da_foreach(TYPE, VAR, DA) for (TYPE *VAR = (DA)->items; VAR < (DA)->items + (DA)->count; VAR++)
 
 #define rstb_da_free(DA) RSTB_DA_FREE((DA)->items) 
 #define rstb_da_reset(DA) (DA)->count = 0
 
 #ifdef RSTB_DA_H_STRIP_PREFIX
-    #define da_decl         rstb_da_decl
-    #define da_append       rstb_da_append
-    #define da_append_many  rstb_da_append_many
-    #define da_foreach      rstb_da_foreach
-    #define da_free         rstb_da_free
-    #define da_reset        rstb_da_reset
-#endif
+    #define da_decl                 rstb_da_decl
+    #define da_append               rstb_da_append
+    #define da_append_many          rstb_da_append_many
+    #define da_remove_unordered     rstb_da_remove_unordered
+    #define da_foreach              rstb_da_foreach
+    #define da_last                 rstb_da_last
+    #define da_free                 rstb_da_free
+    #define da_reset                rstb_da_reset
+#endif // RSTB_DA_H_STRIP_PREFIX
 
-#endif  //  RSTB_DA_H
+#endif // RSTB_DA_H

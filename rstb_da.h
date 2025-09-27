@@ -111,7 +111,7 @@ int main()
 #define rstb_da_reserve(DA, EXPECTED) \
     do { \
         if ((EXPECTED) > (DA)->capacity) { \
-            int old = (DA)->capacity; \
+            size_t old = (DA)->capacity; \
             if ((DA)->capacity == 0) { \
                 (DA)->capacity = RSTB_DA_INIT_CAP; \
             } \

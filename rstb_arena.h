@@ -3,8 +3,11 @@ rstb_arena.h - v0.0 UnknownRori <unknownrori@proton.me>
 
 This is a single-header-file library that provides easy to use
 Arena (Bump) allocator for C by using macro system., by default it uses malloc as backend.
+Note that by default it will be aligned by 16 bytes
 
-Mainly inspired by nob.h provided by tsoding
+Supported backend
+- malloc
+- windows.h (Windows API)
 
 To use this library :
 #define RSTB_ARENA_IMPLEMENTATION
@@ -21,28 +24,54 @@ Table of Contents :
 
 ```c
 #include <stdio.h>
+#include <string.h>
+
 #define RSTB_ARENA_IMPLEMENTATION
-#define RSTB_ARENA_STRIP_PREFIX
-#include "rstb_da.h"
+#define RSTB_ARENA_STRICT
+#define RSTB_ARENA_BACKEND_MALLOC
+#include "rstb_arena.h"
 
 int main()
 {
+    rstb_arena arena = {0};
+    rstb_arena_init(&arena, 32);
+
+    char* hello = rstb_arena_alloc(&arena, 8);
+    strncpy(hello, "Hello!", 8);
+    printf("hello = %p\n", hello);
+    printf("%s\n", hello);
+
+    char* hello2 = rstb_arena_alloc(&arena, 32);
+    strncpy(hello2, "Hello World!", 32);
+    printf("hello = %p\n", hello2);
+    printf("%s\n", hello2);
+
+    rstb_arena_free(&arena);
+
     return 0;
 }
 ```
 
 ## API
 
+## Constants
+
+ - RSTB_ARENA_RECOMMENDED               - Recommended size for arena
+
 ## Flags
 
- - RSTB_ARENA_STRIP_PREFIX           - strip `rstb_` prefixes for non-redefinable names
+ - RSTB_ARENA_STRIP_PREFIX              - strip `rstb_` prefixes for non-redefinable names
+ - RSTB_ARENA_STRICT                    - when memory allocation failed throw an assertion error immediately 
  
+ - RSTB_ARENA_BACKEND_MALLOC            - Uses C stdlib memory management
+ - RSTB_ARENA_BACKEND_WINDOWS           - Uses windows memory management
+ - RSTB_ARENA_BACKEND_WINDOWS           - Uses mmap memory management
 ## Redefinable Macros
 
  - RSTB_ARENA_ASSERT(VALUE)            - redefine which assert() of the rstb_da.h should be use.
  - RSTB_ARENA_REALLOC(OLDPTR, SIZE)    - redefine which realloc() of the rstb_da.h should be use.
  - RSTB_ARENA_FREE(PTR)                - redefine which free() of the rstb_da.h should be use.
- - RSTB_ARENA_INIT_CAP                 - redefine how many items should be allocated when initialized.
+ - RSTB_ARENA_ALIGN                    - redefine how memory alignment should be
  
 ## Change Log
  - 0.0  - Proof of concept
@@ -61,18 +90,24 @@ int main()
 #ifndef RSTB_ARENA_ASSERT
     #include <assert.h>
     #define RSTB_ARENA_ASSERT assert
-#endif
+#endif // RSTB_ARENA_ASSERT
+//
+#ifndef RSTB_ARENA_ALIGN
+    #define RSTB_ARENA_ALIGN 16
+#endif // RSTB_ARENA_ALIGN
 
-#ifndef RSTB_ARENA_INIT_CAP
-    #define RSTB_ARENA_INIT_CAP 4096
-#endif
+#define _RSTB_ARENA_ALIGN_UP(value, alignment) \
+    ((((value) + (alignment) - 1) / (alignment)) * (alignment))
+
+#ifndef RSTB_ARENA_RECOMMENDED
+    #define RSTB_ARENA_RECOMMENDED 4096
+#endif // RSTB_ARENA_RECOMMENDED
 
 #ifdef RSTB_ARENA_STRICT
     #define RSTB_ARENA_STRICT_ASSERT RSTB_ARENA_ASSERT
 #else
     #define RSTB_ARENA_STRICT_ASSERT(X) (X)
-#endif
-
+#endif // RSTB_ARENA_STRICT
 
 #ifdef RSTB_ARENA_BACKEND_MALLOC
     #ifndef RSTB_ARENA_REALLOC
@@ -84,8 +119,16 @@ int main()
         #include <stdlib.h>
         #define RSTB_ARENA_FREE free
     #endif
-#elif RSTB_ARENA_BACKEND_WINDOWS
-    #error "Currently not supported!"
+#elifdef RSTB_ARENA_BACKEND_WINDOWS
+    #ifndef RSTB_ARENA_REALLOC
+        #include <windows.h>
+        #define RSTB_ARENA_REALLOC(P, S) VirtualAlloc((P), (S), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE )
+    #endif
+
+    #ifndef RSTB_ARENA_FREE
+        #include <windows.h>
+        #define RSTB_ARENA_FREE(X) VirtualFree((X), 0, MEM_DECOMMIT)
+    #endif
 #elif RSTB_ARENA_BACKEND_MMAP
     #error "Currently not supported!"
 #elif RSTB_ARENA_BACKEND_EMSCRIPTEN
@@ -113,11 +156,11 @@ int main()
 // ---------------------------------------
 
 typedef struct rstb_arena_region {
-    void*   ptr;
+    char*   ptr;
     size_t  capacity;
     size_t  used;
 
-    rstb_arena_region* next;
+    struct rstb_arena_region* next;
 } rstb_arena_region;
 
 typedef struct rstb_arena {
@@ -126,34 +169,56 @@ typedef struct rstb_arena {
 } rstb_arena;
 
 RSTB_ARENA_API int         rstb_arena_init(rstb_arena* arena, size_t region_size);
-RSTB_ARENA_API void*       rstb_arena_alloc(size_t size);
+RSTB_ARENA_API void*       rstb_arena_alloc(rstb_arena* arena, size_t size);
 RSTB_ARENA_API void        rstb_arena_free(rstb_arena* ptr);
 
 // INFO : Private functions
-int                __rstb_arena_append_region(rstb_arena* arena, size_t capacity);
+int                __rstb_arena_append_region(rstb_arena* arena);
 rstb_arena_region* __rstb_arena_alloc_region(size_t capacity);
 void               __rstb_arena_free_region(rstb_arena_region* ptr);
 
 
-/*#ifdef RSTB_ARENA_IMPLEMENTATION*/
+#ifdef RSTB_ARENA_IMPLEMENTATION
 
 int         rstb_arena_init(rstb_arena* ptr, size_t region_size)
 {
     RSTB_ARENA_ASSERT(ptr != NULL && "Null Pointer!");
-    RSTB_ARENA_ASSERT(region_size <= 0 && "<= 0 Region Size is not allowed!");
+    RSTB_ARENA_ASSERT(region_size > 0 && "Size cannot be 0!");
 
-    ptr->region_size = region_size;
-    if (__rstb_arena_append_region(ptr, region_size)) {
+    ptr->region_size = _RSTB_ARENA_ALIGN_UP(region_size, RSTB_ARENA_ALIGN);
+
+    if (__rstb_arena_append_region(ptr)) {
         RSTB_ARENA_STRICT_ASSERT(0 && "Buy more RAM lol");
         return 1;
     }
 
+
     return 0;
 }
 
-void*       rstb_arena_alloc(size_t size)
+void*       rstb_arena_alloc(rstb_arena* arena, size_t size)
 {
-    return NULL;
+    size_t aligned = _RSTB_ARENA_ALIGN_UP(size, RSTB_ARENA_ALIGN);
+    rstb_arena_region* next = arena->next;
+    while (1) {
+        if (next->capacity > next->used + aligned) {
+            break;
+        }
+
+        if (next->next == NULL)  {
+            __rstb_arena_append_region(arena);
+            next = next->next;
+            goto done;
+        }
+
+        next = next->next;
+    }
+
+done:
+    void* ptr = next->ptr + next->used;
+    next->used += aligned;
+
+    return ptr;
 }
 
 void        rstb_arena_free(rstb_arena* ptr)
@@ -172,11 +237,41 @@ void        rstb_arena_free(rstb_arena* ptr)
 }
 
 // INFO : Private functions
-int                __rstb_arena_append_region(rstb_arena* arena, size_t capacity);
-rstb_arena_region* __rstb_arena_alloc_region(size_t capacity);
-void               __rstb_arena_free_region(rstb_arena_region* ptr);
+int                __rstb_arena_append_region(rstb_arena* arena)
+{
+    if (arena->next == NULL) {
+        arena->next = __rstb_arena_alloc_region(arena->region_size);
+        return 0;
+    }
 
-/*#endif*/
+    rstb_arena_region* next = arena->next;
+    while (1) {
+        if (next->next == NULL) break;
+        next = next->next;
+    }
+    next->next = __rstb_arena_alloc_region(arena->region_size + sizeof(rstb_arena_region));
+    return 0;
+}
+rstb_arena_region* __rstb_arena_alloc_region(size_t capacity)
+{
+    rstb_arena_region* ptr = NULL;
+    ptr = (rstb_arena_region*)RSTB_ARENA_REALLOC(ptr, capacity);
+    if (ptr == NULL) {
+        RSTB_ARENA_STRICT_ASSERT(0 && "Buy more RAM lol");
+        return NULL;
+    }
+    ptr->next = NULL;
+    ptr->used = 0;
+    ptr->ptr = ((char*)ptr) + sizeof(rstb_arena_region);
+    ptr->capacity = capacity - sizeof(rstb_arena_region);
+    return ptr;
+}
+void               __rstb_arena_free_region(rstb_arena_region* ptr)
+{
+    RSTB_ARENA_FREE(ptr);
+}
+
+#endif // RSTB_ARENA_IMPLEMENTATION
 
 #ifdef RSTB_ARENA_STRIP_PREFIX
     #define arena                   rstb_arena

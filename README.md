@@ -4,9 +4,10 @@
 
 ## Features
 
-|Library                    |Latest Version|Category|LoC|Description                |
-|---------------------------|--------------|--------|---|---------------------------|
-|**[rstb_da.h](rstb_da.h)** |1.1           |misc    |166|Simple to use dynamic array|
+|Library                        |Latest Version|Category|LoC|Description                         |
+|-------------------------------|--------------|--------|---|------------------------------------|
+|**[rstb_da.h](rstb_da.h)**     |1.1           |misc    |166|Simple to use dynamic array         |
+|**[rstb_arena.h](rstb_da.h)**  |0.0           |misc    |-  |Simple to use arena (bump) allocator|
 
 ## Usage
 

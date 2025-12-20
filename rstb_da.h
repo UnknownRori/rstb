@@ -1,5 +1,5 @@
 /* 
-rstb_da.h - v1.1 UnknownRori <unknownrori@proton.me>
+rstb_da.h - v1.1 UnknownRori <unknownrori@proton.me> - MIT
 
 This is a single-header-file library that provides easy to use
 Dynamic Array (da) for C by using macro system.
@@ -52,6 +52,8 @@ int main()
  - rstb_da_decl(TYPE, NAME)         - Helper macro that declare a struct of dynamic array.
  - rstb_da_reserve(DA, COUNT)       - Helper macro that reserve memory to allow storing amount of items.
  - rstb_da_append(DA, VALUE)        - Helper macro that append value into dynamic array.
+ - rstb_da_last(DA)                 - Helper macro that get the last element.
+ - rstb_da_pop(DA)                  - Helper macro that pop the value
  - rstb_da_free(DA)                 - Helper macro that free dynamic array but not setting the count or capacity to 0.
  - rstb_da_reset(DA)                - Helper macro that set the count to 0 effectively remove all the element.
 

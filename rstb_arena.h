@@ -74,6 +74,7 @@ int main()
  - RSTB_ARENA_ALIGN                    - redefine how memory alignment should be
  
 ## Change Log
+ - 0.1  - Adding chunk and realloc
  - 0.0  - Proof of concept
  
 */
@@ -163,6 +164,14 @@ typedef struct rstb_arena_region {
     struct rstb_arena_region* next;
 } rstb_arena_region;
 
+typedef struct rstb_arena_chunk {
+    size_t  capacity;
+    struct rstb_arena_region* parent;
+    struct rstb_arena_chunk*  prev;
+    struct rstb_arena_chunk*  next;
+} rstb_arena_chunk;
+
+
 typedef struct rstb_arena {
     rstb_arena_region* next;
     size_t             region_size;
@@ -170,9 +179,12 @@ typedef struct rstb_arena {
 
 RSTB_ARENA_API int         rstb_arena_init(rstb_arena* arena, size_t region_size);
 RSTB_ARENA_API void*       rstb_arena_alloc(rstb_arena* arena, size_t size);
+RSTB_ARENA_API void*       rstb_arena_realloc(rstb_arena* arena, void* ptr, size_t size);
 RSTB_ARENA_API void        rstb_arena_free(rstb_arena* ptr);
 
+// ------------------------
 // INFO : Private functions
+// ------------------------
 int                __rstb_arena_append_region(rstb_arena* arena);
 rstb_arena_region* __rstb_arena_alloc_region(size_t capacity);
 void               __rstb_arena_free_region(rstb_arena_region* ptr);
@@ -180,7 +192,7 @@ void               __rstb_arena_free_region(rstb_arena_region* ptr);
 
 #ifdef RSTB_ARENA_IMPLEMENTATION
 
-int         rstb_arena_init(rstb_arena* ptr, size_t region_size)
+RSTB_ARENA_API int         rstb_arena_init(rstb_arena* ptr, size_t region_size)
 {
     RSTB_ARENA_ASSERT(ptr != NULL && "Null Pointer!");
     RSTB_ARENA_ASSERT(region_size > 0 && "Size cannot be 0!");
@@ -196,7 +208,7 @@ int         rstb_arena_init(rstb_arena* ptr, size_t region_size)
     return 0;
 }
 
-void*       rstb_arena_alloc(rstb_arena* arena, size_t size)
+RSTB_ARENA_API void*       rstb_arena_alloc(rstb_arena* arena, size_t size)
 {
     size_t aligned = _RSTB_ARENA_ALIGN_UP(size, RSTB_ARENA_ALIGN);
     rstb_arena_region* next = arena->next;
@@ -236,7 +248,11 @@ void        rstb_arena_free(rstb_arena* ptr)
     ptr->next = NULL;
 }
 
+RSTB_ARENA_API void*       rstb_arena_realloc(rstb_arena* arena, size_t size);
+
+// ------------------------
 // INFO : Private functions
+// ------------------------
 int                __rstb_arena_append_region(rstb_arena* arena)
 {
     if (arena->next == NULL) {
@@ -277,6 +293,7 @@ void               __rstb_arena_free_region(rstb_arena_region* ptr)
     #define arena                   rstb_arena
     #define arena_init              rstb_arena_init
     #define arena_alloc             rstb_arena_alloc
+    #define arena_realloc           rstb_arena_realloc
     #define arena_free              rstb_arena_free
 #endif // RSTB_ARENA_STRIP_PREFIX
 

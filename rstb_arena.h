@@ -1,5 +1,5 @@
 /* 
-rstb_arena.h - v0.0 UnknownRori <unknownrori@proton.me>
+rstb_arena.h - v0.1 UnknownRori <unknownrori@proton.me>
 
 This is a single-header-file library that provides easy to use
 Arena (Bump) allocator for C by using macro system., by default it uses malloc as backend.
@@ -74,6 +74,7 @@ int main()
  - RSTB_ARENA_ALIGN                    - redefine how memory alignment should be
  
 ## Change Log
+ - 0.1  - Add rstb_arena_reset
  - 0.0  - Proof of concept
  
 */
@@ -170,6 +171,7 @@ typedef struct rstb_arena {
 
 RSTB_ARENA_API int         rstb_arena_init(rstb_arena* arena, size_t region_size);
 RSTB_ARENA_API void*       rstb_arena_alloc(rstb_arena* arena, size_t size);
+RSTB_ARENA_API void        rstb_arena_reset(rstb_arena* arena);
 RSTB_ARENA_API void        rstb_arena_free(rstb_arena* ptr);
 
 // INFO : Private functions
@@ -266,6 +268,18 @@ rstb_arena_region* __rstb_arena_alloc_region(size_t capacity)
     ptr->capacity = capacity - sizeof(rstb_arena_region);
     return ptr;
 }
+
+RSTB_ARENA_API void        rstb_arena_reset(rstb_arena* arena)
+{
+    rstb_arena_region* next = arena->next;
+    while (1) {
+        next->used = 0;
+
+        if (next->next == NULL) break;
+        next = next->next;
+    }
+}
+
 void               __rstb_arena_free_region(rstb_arena_region* ptr)
 {
     RSTB_ARENA_FREE(ptr);

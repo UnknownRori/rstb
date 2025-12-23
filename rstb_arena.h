@@ -54,6 +54,13 @@ int main()
 
 ## API
 
+## Functions
+ - rstb_arena_init                      - Initialize [`arena`] with region size and allocate it's first region based on allocation backend
+ - rstb_arena_free                      - Free all of the region from [`arena`]
+ - rstb_arena_reset                     - Mark all region as free section
+ - rstb_arena_alloc                     - Request a memory slot
+ - rstb_arena_realloc                   - Reallocate old memory to new memory probably a new region but the old still exists and going to be memory leak (which is safe btw)
+
 ## Constants
 
  - RSTB_ARENA_RECOMMENDED               - Recommended size for arena
@@ -74,7 +81,7 @@ int main()
  - RSTB_ARENA_ALIGN                    - redefine how memory alignment should be
  
 ## Change Log
- - 0.1  - Add rstb_arena_reset
+ - 0.1  - Add rstb_arena_reset, realloc, add extern c for cpp, and more docs
  - 0.0  - Proof of concept
  
 */
@@ -169,18 +176,33 @@ typedef struct rstb_arena {
     size_t             region_size;
 } rstb_arena;
 
+#if defined(__cplusplus)
+extern "C" {  
+#endif
+
+// Initialize [`arena`] with region size and allocate it's first region based on allocation backend
 RSTB_ARENA_API int         rstb_arena_init(rstb_arena* arena, size_t region_size);
+// Request a memory slot
 RSTB_ARENA_API void*       rstb_arena_alloc(rstb_arena* arena, size_t size);
+// Reallocate old memory to new memory probably a new region but the old still exists and going to be memory leak (which is safe btw)
+RSTB_ARENA_API void*       rstb_arena_realloc(rstb_arena* arena, void* oldptr, size_t old, size_t new_size);
+// Mark all region as free section
 RSTB_ARENA_API void        rstb_arena_reset(rstb_arena* arena);
+// Free all of the region from [`arena`]
 RSTB_ARENA_API void        rstb_arena_free(rstb_arena* ptr);
 
-// INFO : Private functions
-int                __rstb_arena_append_region(rstb_arena* arena);
-rstb_arena_region* __rstb_arena_alloc_region(size_t capacity);
-void               __rstb_arena_free_region(rstb_arena_region* ptr);
+#if defined(__cplusplus)
+}
+#endif
 
 
 #ifdef RSTB_ARENA_IMPLEMENTATION
+
+
+// INFO : Private functions
+static int                __rstb_arena_append_region(rstb_arena* arena, size_t n);
+static rstb_arena_region* __rstb_arena_alloc_region(size_t capacity);
+static void               __rstb_arena_free_region(rstb_arena_region* ptr);
 
 int         rstb_arena_init(rstb_arena* ptr, size_t region_size)
 {
@@ -189,7 +211,7 @@ int         rstb_arena_init(rstb_arena* ptr, size_t region_size)
 
     ptr->region_size = _RSTB_ARENA_ALIGN_UP(region_size, RSTB_ARENA_ALIGN);
 
-    if (__rstb_arena_append_region(ptr)) {
+    if (__rstb_arena_append_region(ptr, ptr->region_size)) {
         RSTB_ARENA_STRICT_ASSERT(0 && "Buy more RAM lol");
         return 1;
     }
@@ -208,7 +230,11 @@ void*       rstb_arena_alloc(rstb_arena* arena, size_t size)
         }
 
         if (next->next == NULL)  {
-            __rstb_arena_append_region(arena);
+            size_t new_size = arena->region_size;
+            if (size > new_size) {
+                new_size = size;
+            }
+            __rstb_arena_append_region(arena, size);
             next = next->next;
             goto done;
         }
@@ -221,6 +247,17 @@ done:
     next->used += aligned;
 
     return ptr;
+}
+
+RSTB_ARENA_API void*       rstb_arena_realloc(rstb_arena* arena, void* oldptr, size_t old, size_t new_size)
+{
+    RSTB_ARENA_ASSERT(arena != NULL && "Null ptr: arena");
+    RSTB_ARENA_ASSERT(oldptr != NULL && "Null ptr: oldptr");
+    RSTB_ARENA_ASSERT(old > 0 && "old must above 0");
+    RSTB_ARENA_ASSERT(new_size > 0 && "new_size must above 0");
+    void* tmp = rstb_arena_alloc(arena, new_size);
+    memcpy(tmp, oldptr, old);
+    return tmp;
 }
 
 void        rstb_arena_free(rstb_arena* ptr)
@@ -238,8 +275,19 @@ void        rstb_arena_free(rstb_arena* ptr)
     ptr->next = NULL;
 }
 
-// INFO : Private functions
-int                __rstb_arena_append_region(rstb_arena* arena)
+RSTB_ARENA_API void        rstb_arena_reset(rstb_arena* arena)
+{
+    rstb_arena_region* next = arena->next;
+    while (1) {
+        next->used = 0;
+
+        if (next->next == NULL) break;
+        next = next->next;
+    }
+}
+
+
+static int                __rstb_arena_append_region(rstb_arena* arena, size_t n)
 {
     if (arena->next == NULL) {
         arena->next = __rstb_arena_alloc_region(arena->region_size);
@@ -254,7 +302,8 @@ int                __rstb_arena_append_region(rstb_arena* arena)
     next->next = __rstb_arena_alloc_region(arena->region_size + sizeof(rstb_arena_region));
     return 0;
 }
-rstb_arena_region* __rstb_arena_alloc_region(size_t capacity)
+
+static rstb_arena_region* __rstb_arena_alloc_region(size_t capacity)
 {
     rstb_arena_region* ptr = NULL;
     ptr = (rstb_arena_region*)RSTB_ARENA_REALLOC(ptr, capacity);
@@ -269,18 +318,7 @@ rstb_arena_region* __rstb_arena_alloc_region(size_t capacity)
     return ptr;
 }
 
-RSTB_ARENA_API void        rstb_arena_reset(rstb_arena* arena)
-{
-    rstb_arena_region* next = arena->next;
-    while (1) {
-        next->used = 0;
-
-        if (next->next == NULL) break;
-        next = next->next;
-    }
-}
-
-void               __rstb_arena_free_region(rstb_arena_region* ptr)
+static void               __rstb_arena_free_region(rstb_arena_region* ptr)
 {
     RSTB_ARENA_FREE(ptr);
 }
@@ -291,6 +329,8 @@ void               __rstb_arena_free_region(rstb_arena_region* ptr)
     #define arena                   rstb_arena
     #define arena_init              rstb_arena_init
     #define arena_alloc             rstb_arena_alloc
+    #define arena_realloc           rstb_arena_realloc
+    #define arena_reset             rstb_arena_reset
     #define arena_free              rstb_arena_free
 #endif // RSTB_ARENA_STRIP_PREFIX
 

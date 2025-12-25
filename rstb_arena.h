@@ -1,5 +1,5 @@
 /* 
-rstb_arena.h - v0.1 UnknownRori <unknownrori@proton.me>
+rstb_arena.h - v0.2 UnknownRori <unknownrori@proton.me>
 
 This is a single-header-file library that provides easy to use
 Arena (Bump) allocator for C by using macro system., by default it uses malloc as backend.

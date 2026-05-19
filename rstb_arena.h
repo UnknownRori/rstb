@@ -1,5 +1,5 @@
 /* 
-rstb_arena.h - v0.1 UnknownRori <unknownrori@proton.me>
+rstb_arena.h - v0.2 UnknownRori <unknownrori@proton.me>
 
 This is a single-header-file library that provides easy to use
 Arena (Bump) allocator for C by using macro system., by default it uses malloc as backend.
@@ -7,7 +7,10 @@ Note that by default it will be aligned by 16 bytes
 
 Supported backend
 - malloc
+- mmap
 - windows.h (Windows API)
+
+NOTE : There are possible memory leak on how the memory handled in mmap.
 
 To use this library :
 #define RSTB_ARENA_IMPLEMENTATION
@@ -72,7 +75,8 @@ int main()
  
  - RSTB_ARENA_BACKEND_MALLOC            - Uses C stdlib memory management
  - RSTB_ARENA_BACKEND_WINDOWS           - Uses windows memory management
- - RSTB_ARENA_BACKEND_WINDOWS           - Uses mmap memory management
+ - RSTB_ARENA_BACKEND_MMAP              - Uses mmap memory management
+
 ## Redefinable Macros
 
  - RSTB_ARENA_ASSERT(VALUE)            - redefine which assert() of the rstb_da.h should be use.
@@ -81,6 +85,7 @@ int main()
  - RSTB_ARENA_ALIGN                    - redefine how memory alignment should be
  
 ## Change Log
+ - 0.2  - Add mmap backend
  - 0.1  - Add rstb_arena_reset, realloc, add extern c for cpp, and more docs
  - 0.0  - Proof of concept
  
@@ -137,8 +142,16 @@ int main()
         #include <windows.h>
         #define RSTB_ARENA_FREE(X) VirtualFree((X), 0, MEM_DECOMMIT)
     #endif
-#elif RSTB_ARENA_BACKEND_MMAP
-    #error "Currently not supported!"
+#elifdef RSTB_ARENA_BACKEND_MMAP
+    #ifndef RSTB_ARENA_REALLOC
+        #include <sys/mman.h>
+        #define RSTB_ARENA_REALLOC(P, S) mmap((P), (S), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0)
+    #endif
+
+    #ifndef RSTB_ARENA_FREE
+        #include <sys/mman.h>
+        #define RSTB_ARENA_FREE(X) munmap((X), RSTB_ARENA_RECOMMENDED)
+    #endif
 #elif RSTB_ARENA_BACKEND_EMSCRIPTEN
     #error "Currently not supported!"
 #else

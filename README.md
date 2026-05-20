@@ -8,7 +8,7 @@
 |-------------------------------|--------------|--------|---|------------------------------------|
 |**[rstb_da.h](rstb_da.h)**     |1.1           |misc    |166|Simple to use dynamic array         |
 |**[rstb_arena.h](rstb_da.h)**  |0.1           |misc    |337|Simple to use arena (bump) allocator|
-|**[rstb_sv.h](rstb_sv.h)**     |0.1           |misc    |172|Simple string manipulation helper   |
+|**[rstb_sv.h](rstb_sv.h)**     |0.1           |misc    |200|Simple string manipulation helper   |
 
 ## Usage
 

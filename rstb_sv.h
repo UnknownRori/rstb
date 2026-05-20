@@ -42,6 +42,8 @@ int main()
  - rstb_sv_chop_delim               - Chop string from by delimiter
  - rstb_sv_trim_right               - Remove whitepsace from the right
  - rstb_sv_trim_left                - Remove whitepsace from the left
+ - rstb_sv_cmp_cstr                 - Compare the string_view with cstr
+ - rstb_sv_cmp_sv                   - Compare the string_view with other string_view
 
 ## Flag
  - RSTB_SV_SHARED
@@ -55,6 +57,7 @@ int main()
  - SV_Arg
 
 ## Change Log
+ - 0.2 Added string comparison between cstr and other string_view
  - 0.1 Initial Release
 
  */
@@ -101,6 +104,8 @@ RSTB_SV_API void                rstb_sv_chop_left      (rstb_string_view* sv);
 RSTB_SV_API rstb_string_view    rstb_sv_chop_by_delim  (rstb_string_view* sv, char delim);
 RSTB_SV_API void                rstb_sv_trim_right     (rstb_string_view* sv);
 RSTB_SV_API void                rstb_sv_trim_left      (rstb_string_view* sv);
+RSTB_SV_API int                 rstb_sv_cmp_cstr       (rstb_string_view* sv, const char* cstr);
+RSTB_SV_API int                 rstb_sv_cmp_sv         (const rstb_string_view* sv, const rstb_string_view* sv2);
 
 #ifdef RSTB_SV_IMPLEMENTATION
 RSTB_SV_API rstb_string_view    rstb_cstr_to_sv        (const char* ptr)
@@ -151,6 +156,27 @@ RSTB_SV_API void                rstb_sv_trim_left      (rstb_string_view* sv)
         if (sv->count <= 0) return;
     }
 }
+
+RSTB_SV_API int                 rstb_sv_cmp_cstr       (rstb_string_view* sv, const char* cstr)
+{
+    rstb_string_view temp = rstb_cstr_to_sv(cstr);
+    return rstb_sv_cmp_sv(sv, &temp);
+}
+
+RSTB_SV_API int                 rstb_sv_cmp_sv         (const rstb_string_view* sv1, const rstb_string_view* sv2)
+{
+    size_t min_len = (sv1->count < sv2->count) ? sv1->count : sv2->count;
+    
+    int res = memcmp(sv1->data, sv2->data, min_len);
+    if (res != 0) {
+        return res;
+    }
+    
+    if (sv1->count < sv2->count) return -1;
+    if (sv1->count > sv2->count) return 1;
+    return 0;
+}
+
 #endif // RSTB_SV_IMPLEMENTATION
 
 #if defined(__cplusplus)
@@ -167,6 +193,8 @@ RSTB_SV_API void                rstb_sv_trim_left      (rstb_string_view* sv)
 #   define sv_chop_by_delim     rstb_sv_chop_by_delim
 #   define sv_trim_right        rstb_sv_trim_right
 #   define sv_trim_left         rstb_sv_trim_left
+#   define sv_cmp_cstr          rstb_sv_cmp_cstr
+#   define sv_cmp_sv            rstb_sv_cmp_sv
 #endif // RSTB_DA_H_STRIP_PREFIX
 
 #endif // RSTB_SV_H

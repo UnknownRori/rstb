@@ -113,16 +113,21 @@ int main()
 #define rstb_da_reserve(DA, EXPECTED) \
     do { \
         if ((EXPECTED) > (DA)->capacity) { \
-            size_t old = (DA)->capacity; \
-            if ((DA)->capacity == 0) { \
-                (DA)->capacity = RSTB_DA_INIT_CAP; \
+            size_t old_capacity = (DA)->capacity; \
+            size_t new_capacity = (old_capacity == 0) ? RSTB_DA_INIT_CAP : old_capacity; \
+            \
+            while ((EXPECTED) > new_capacity) { \
+                new_capacity *= 2; \
             } \
-            while ((EXPECTED) > (DA)->capacity) { \
-                (DA)->capacity *= 2; \
+            \
+            if (new_capacity != old_capacity) { \
+                (DA)->items = RSTB_DA_REALLOC((DA)->items, new_capacity * sizeof(*(DA)->items)); \
+                RSTB_DA_ASSERT((DA)->items && "Buy more RAM lol"); \
+                if (old_capacity > 0) { \
+                    memset((DA)->items + old_capacity, 0, (new_capacity - old_capacity) * sizeof(*(DA)->items)); \
+                } \
             } \
-            (DA)->items = RSTB_DA_REALLOC((DA)->items, (DA)->capacity * sizeof(*(DA)->items)); \
-            RSTB_DA_ASSERT((DA)->items && "Buy more RAM lol"); \
-            memset((DA)->items + old, 0, ((DA)->capacity - old) * sizeof(*(DA)->items)); \
+            (DA)->capacity = new_capacity; \
         } \
     } while(0)
 

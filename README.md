@@ -13,7 +13,7 @@ Some of the header uses other header to avoid duplication.
 |**[rstb_arena.h](rstb_da.h)**    |0.1           |misc    |337|Simple to use arena (bump) allocator|
 |**[rstb_sv.h](rstb_sv.h)**       |0.1           |misc    |200|Simple string manipulation helper   |
 |**[rstb_iface.h](rstb_iface.h)** |0.0           |misc    |90 |Simple vtable dispatch              |
-|**[rstb_sb.h](rstb_sb.h)**       |0.0           |misc    |96 |Simple to use String Builder        |
+|**[rstb_sb.h](rstb_sb.h)**       |0.0           |misc    |112|Simple to use String Builder        |
 
 ## Usage
 
